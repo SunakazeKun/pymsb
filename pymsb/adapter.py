@@ -1,16 +1,18 @@
 from .helper import LMSException
 from .binIO import BinaryMemoryIO
 from typing import Callable, Any
+from abc import ABC
 
 __all__ = ["LMSAdapter"]
 
 
-class LMSAdapter:
+class LMSAdapter(ABC):
+    """
+    An interface that can be implemented to adapt features specific to some games, such as special message tags, styles,
+    attributes, and more. In other words, an adapter controls can control how the library will deal with MSBT and MSBF
+    files.
+    """
     def __init__(self):
-        """
-        Constructs a new ``LMSAdapter`` instance. The initial byte order will be big endian and the initial charset will
-        be 'utf-16-be'.
-        """
         self._charset_: str = "utf-16-be"
         self._is_big_endian_: bool = True
         self._read_char_func_: Callable[[BinaryMemoryIO], str] = __read_utf_16_be_char__
@@ -122,6 +124,15 @@ class LMSAdapter:
         return self._write_char_func_(stream, string)
 
     def read_text(self, stream: BinaryMemoryIO) -> str:
+        """
+        Reads from the given stream a null-terminated text string and returns it. If a tag character (\\u000E) is read,
+        the adapter's ``read_tag`` function will be invoked to parse the tag. The readable tag representations are
+        usually encapsulated between square brackets ('[', ']'). To preserve this characters outside of tags, a
+        backslash will be added in front of them. Similarly, a single backslash will be represented by two backslashes.
+
+        :param stream: the stream to read from.
+        :return: the read text.
+        """
         text = ""
 
         while True:
@@ -143,9 +154,25 @@ class LMSAdapter:
         return text
 
     def read_tag(self, stream: BinaryMemoryIO) -> str:
+        """
+        Parses from the given stream a special tag and returns a string representation of it. The string representation
+        should be enclosed between square brackets ('[', ']'). Tags always start out with the same three unsigned shorts
+        values, group ID, tag ID and data size. Following these values, the tag's data follows.
+
+        :param stream: the stream to read from.
+        :return: the parsed tag.
+        """
         raise NotImplementedError()
 
     def write_text(self, stream: BinaryMemoryIO, text: str):
+        """
+        Writes the given text string to the stream. Texts encapsulated between square brackets ('[', ']') are treated as
+        tag strings and will be processed by ``write_tag``. However, if a backslash preceeds any character, including
+        square brackets, the character will be written as is. The text string will be null-terminated.
+
+        :param stream: the stream to write to.
+        :param text: the text to be written.
+        """
         tag_start = 0
         escape = False
         index = 0
@@ -178,6 +205,14 @@ class LMSAdapter:
         self.write_chars(stream, "\u0000")
 
     def write_tag(self, stream: BinaryMemoryIO, tag: str):
+        """
+        Creates a binary representation of the given tag string and writes it to the stream. See ``read_tag`` for the
+        general structure of a tag. The default implementation of ``write_text`` invokes this method by passing over the
+        tag string *without* square brackets.
+
+        :param stream: the stream to write to.
+        :param tag: the tag to be written.
+        """
         raise NotImplementedError()
 
     # ------------------------------------------------------------------------------------------------------------------
