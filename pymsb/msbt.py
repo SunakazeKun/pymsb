@@ -187,8 +187,12 @@ class LMSDocument:
 
         # Cleanup
         del self._temp_labels_
-        del self._temp_attrs_
-        del self._temp_styles_
+
+        if has_attributes:
+            del self._temp_attrs_
+
+        if has_styles:
+            del self._temp_styles_
 
     def _unpack_lbl1_(self, stream: BinaryMemoryIO, offset: int, size: int):
         stream.seek(offset)
