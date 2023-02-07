@@ -20,10 +20,5 @@ setuptools.setup(
         "Topic :: Software Development :: Libraries",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Programming Language :: Python :: 3 :: Only"
-    ],
-    entry_points={
-        "console_scripts": [
-            "pyjmap = pyjmap.__main__:main"
-        ]
-    }
+    ]
 )
