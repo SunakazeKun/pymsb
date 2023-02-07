@@ -10,21 +10,34 @@ class LMSException(Exception):
 # String encoding
 # ----------------------------------------------------------------------------------------------------------------------
 def encoding_to_charset(encoding: int, is_big_endian: bool) -> str:
+    """
+    Returns the name of the charset associated with the specified encoding ID and endianness.
+
+    :param encoding: the encoding's ID.
+    :param is_big_endian: the byte order.
+    :return: the charset's name.
+    """
     if encoding == 0:
         return "utf-8"
     elif encoding == 1:
         return "utf-16-be" if is_big_endian else "utf-16-le"
     else:
-        raise LMSException(f"Unsupported encoding type {encoding} found")
+        raise LMSException(f"Unsupported encoding type {encoding}")
 
 
 def charset_to_encoding(charset: str) -> int:
+    """
+    Returns the ID of the encoding associated with the specified charset name.
+
+    :param charset: the charset's name.
+    :return: the encoding's ID.
+    """
     if charset == "utf-8":
         return 0
     elif charset in ["utf-16-be", "utf-16-le"]:
         return 1
     else:
-        raise LMSException(f"Unsupported charset {charset} found")
+        raise LMSException(f"Unsupported charset {charset}")
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -35,8 +48,8 @@ def find_greater_prime(val: int) -> int:
     Calculates and returns the first prime number that is greater than the specified input value. This is loosely based
     on the 6k+/-1 optimization algorithm for testing a number's primality.
 
-    :param val: The starting value.
-    :return: The first prime number that follows the input value.
+    :param val: the starting value.
+    :return: the first prime number that follows the input value.
     """
     # Standard cases
     if val < 5:
@@ -69,15 +82,15 @@ def find_greater_prime(val: int) -> int:
     return val
 
 
-def calc_hash_bucket_index(encoded_string: str, buckets: int) -> int:
+def calc_hash_bucket_index(encoded_string: bytes, buckets: int) -> int:
     """
     Given the specified number of hash buckets, this function determines which bucket the label should be placed in.
-    This is done by calculating the hash over the byte string and calculating the modulo of the hash and number of
+    This is done by calculating the hash over the byte string and calculating the modulo of the hash and the number of
     buckets.
 
-    :param encoded_string: The encoded string that will be hashed.
-    :param buckets: The number of available hash buckets.
-    :return: The hash bucket index.
+    :param encoded_string: the encoded string that will be hashed.
+    :param buckets: the number of hash buckets.
+    :return: the hash bucket index.
     """
     hsh = 0
     for b in encoded_string:
@@ -86,6 +99,12 @@ def calc_hash_bucket_index(encoded_string: str, buckets: int) -> int:
 
 
 def unpack_hash_table(stream: BinaryMemoryIO) -> dict[int, str]:
+    """
+    Unpacks the labels and indices from the given stream. The resulting dictionary consists of index-label pairs.
+
+    :param stream: the stream to read from.
+    :return: the dictionary of index-label pairs.
+    """
     off_start = stream.tell()
     num_buckets = stream.read_s32()
     off_buckets = stream.tell()
@@ -109,6 +128,13 @@ def unpack_hash_table(stream: BinaryMemoryIO) -> dict[int, str]:
 
 
 def pack_hash_table(stream: BinaryMemoryIO, labels: list[tuple[int, str]], num_buckets: int):
+    """
+    Packs a hash table storing the given index-label pairs and writes the resulting blob to the given stream.
+
+    :param stream: the stream to write to.
+    :param labels: the list of index-label pairs.
+    :param num_buckets: the number of hash buckets.
+    """
     # Initialize buckets and write count
     buckets = [list() for _ in range(num_buckets)]
     stream.write_s32(num_buckets)
