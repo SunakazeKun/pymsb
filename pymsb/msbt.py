@@ -153,13 +153,16 @@ class LMSDocument:
             stream.seek(current_section_offset)
 
         # Verify contents
+        has_attributes = self._adapter_.supports_attributes
+        has_styles = self._adapter_.supports_styles
+
         if self._temp_labels_ is None:
             raise LMSException("No labels section found")
 
-        if self._adapter_.supports_attributes and self._temp_attrs_ is None:
+        if has_attributes and self._temp_attrs_ is None:
             raise LMSException("No attributes section found")
 
-        if self._adapter_.supports_styles and self._temp_styles_ is None:
+        if has_styles and self._temp_styles_ is None:
             raise LMSException("No styles section found")
 
         # Join messages, labels, attributes & styles
@@ -170,13 +173,13 @@ class LMSDocument:
                 else:
                     raise LMSException(f"No label for message no. {i}")
 
-            if self._temp_attrs_:
+            if has_attributes:
                 if i < len(self._temp_attrs_):
                     message.attributes = self._temp_attrs_[i]
                 else:
                     message.attributes = self._adapter_.create_default_attributes()
 
-            if self._temp_styles_:
+            if has_styles:
                 if i < len(self._temp_styles_):
                     message.style = self._temp_styles_[i]
                 else:
