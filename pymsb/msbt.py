@@ -1,5 +1,4 @@
 from typing import Any
-
 from .binIO import *
 from .adapter import LMSAdapter
 from .helper import LMSException
@@ -9,6 +8,10 @@ __all__ = ["LMSMessage", "LMSDocument", "msbt_from_buffer", "msbt_pack_buffer", 
 
 
 class LMSMessage:
+    """
+    Represents an individual message entry that belongs to an LMSDocument. It always has a label and text, but some
+    games support additional attributes and a style value.
+    """
     def __init__(self, text: str):
         self.label = ""
         self.text = text
@@ -17,6 +20,11 @@ class LMSMessage:
 
 
 class LMSDocument:
+    """
+    A text document that can hold message entries (i.e. LMSMessage). It provides the general blueprints for MSBT files,
+    however, game-dependent features need to be handled by custom adapter classes. See LMSAdapter for detailed for more
+    information.
+    """
     _MAGIC_HEADER_ = b"MsgStdBn"
     _MAGIC_LBL1_ = b'LBL1'
     _MAGIC_TXT2_ = b'TXT2'
@@ -26,7 +34,7 @@ class LMSDocument:
 
     def __init__(self, adapter_maker: type[LMSAdapter]):
         self._messages_: list[LMSMessage] = []
-        self._adapter_ = adapter_maker()
+        self._adapter_: LMSAdapter = adapter_maker()
 
         self._temp_labels_: dict[int, str]
         self._temp_attrs_: list[dict[str, Any]]
@@ -34,14 +42,20 @@ class LMSDocument:
 
     @property
     def messages(self) -> list[LMSMessage]:
+        """The list of message entries."""
         return self._messages_
 
     @property
     def adapter(self) -> LMSAdapter:
+        """The adapter that handles game-dependent behavior."""
         return self._adapter_
 
     @property
     def charset(self) -> str:
+        """
+        Gets or sets the charset's name to be used when reading or writing string. Supported charsets are 'utf-8',
+        'utf-16-be' and 'utf-16-le'.
+        """
         return self._adapter_.charset
 
     @charset.setter
@@ -49,20 +63,37 @@ class LMSDocument:
         self._adapter_.charset = charset
 
     def set_big_endian(self):
+        """
+        Forces the usage of big endian byte order when reading or writing. If the current charset is 'utf-16-le', it
+        will be changed to 'utf-16-be'.
+        """
         self._adapter_.set_big_endian()
 
     def set_little_endian(self):
+        """
+        Forces the usage of little endian byte order when reading or writing. If the current charset is 'utf-16-be', it
+        will be changed to 'utf-16-le'.
+        """
         self._adapter_.set_little_endian()
 
     @property
     def is_big_endian(self) -> bool:
+        """True if big endian byte order should be used, otherwise False."""
         return self._adapter_.is_big_endian
 
     @property
     def is_little_endian(self) -> bool:
+        """True if little endian byte order should be used, otherwise False."""
         return self._adapter_.is_little_endian
 
     def new_message(self, label: str) -> LMSMessage:
+        """
+        Creates and returns a new message entry using the given label and adds it to the list of messages. If an entry
+        with the same label already exists, an LMSException will be thrown.
+
+        :param label: the new message's label.
+        :return: the new message entry.
+        """
         # Check if message with label already exists
         for message in self.messages:
             if message.label == label:
@@ -72,11 +103,11 @@ class LMSDocument:
         message = LMSMessage("")
         message.label = label
 
-        if self.adapter.supports_attributes:
-            message.attributes = self.adapter.create_default_attributes()
+        if self._adapter_.supports_attributes:
+            message.attributes = self._adapter_.create_default_attributes()
 
-        if self.adapter.supports_styles:
-            message.style = self.adapter.create_default_style()
+        if self._adapter_.supports_styles:
+            message.style = self._adapter_.create_default_style()
 
         self.messages.append(message)
 
@@ -248,13 +279,18 @@ class LMSDocument:
     # Packing
     # ------------------------------------------------------------------------------------------------------------------
     def makebin(self) -> bytes:
+        """
+        Packs the document's contents according to the MSBT format and returns the resulting bytes buffer.
+
+        :return: the packed bytes buffer.
+        """
         # Create stream and write initial content
-        stream = self.adapter.create_stream(32)
+        stream = self._adapter_.create_stream(32)
 
         stream.write(self._MAGIC_HEADER_)
         stream.write_u16(0xFEFF)
         stream.skip(2)
-        stream.write_u8(helper.charset_to_encoding(self.adapter.charset))
+        stream.write_u8(helper.charset_to_encoding(self._adapter_.charset))
         stream.write_u8(3)
         stream.write_u16(0)
         stream.skip(2)
@@ -395,27 +431,51 @@ class LMSDocument:
 # ----------------------------------------------------------------------------------------------------------------------
 # Helper I/O functions
 # ----------------------------------------------------------------------------------------------------------------------
-def msbt_from_buffer(adapter, buffer) -> LMSDocument:
-    stream = BinaryMemoryIO(buffer)
-    document = LMSDocument(adapter)
-    document._unpack_(stream)
-    del stream
+def msbt_from_buffer(adapter_maker: type[LMSAdapter], buffer: bytes | bytearray) -> LMSDocument:
+    """
+    Creates and returns a new LMS document by unpacking the content from the specified buffer. The data is expected to
+    be stored in the MSBT format.
+
+    :param adapter_maker: the adapter class to be used.
+    :param buffer: the byte buffer.
+    :return: the unpacked LMSDocument.
+    """
+    document = LMSDocument(adapter_maker)
+    document._unpack_(BinaryMemoryIO(buffer))
     return document
 
 
 def msbt_pack_buffer(document: LMSDocument) -> bytes:
+    """
+    Packs the given LMS document according to the MSBT format and returns the resulting bytes buffer.
+
+    :param document: the LMSDocument to be packed.
+    :return: the buffer containg the stored data.
+    """
     return document.makebin()
 
 
-def msbt_from_file(adapter, file_path: str) -> LMSDocument:
+def msbt_from_file(adapter_maker: type[LMSAdapter], file_path: str) -> LMSDocument:
+    """
+    Creates and returns a new LMS document by unpacking the contents from the file at the given path. The data is
+    expected to be stored in the MSBT format.
+
+    :param adapter_maker: the adapter class to be used.
+    :param file_path: the file path to the MSBT file.
+    :return: the unpacked LMSDocument.
+    """
     with open(file_path, "rb") as f:
-        stream = BinaryMemoryIO(f.read())
-        document = LMSDocument(adapter)
-        document._unpack_(stream)
-        del stream
+        document = LMSDocument(adapter_maker)
+        document._unpack_(BinaryMemoryIO(f.read()))
         return document
 
 
 def msbt_write_file(document: LMSDocument, file_path: str):
+    """
+    Packs the given LMS document according to the MSBT format and writes the contents to the file at the given path.
+
+    :param document: the LMSDocument to be written.
+    :param file_path: the file path to write the MSBT file to.
+    """
     with open(file_path, "wb") as f:
         f.write(document.makebin())
