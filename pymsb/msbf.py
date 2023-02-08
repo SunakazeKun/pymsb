@@ -124,6 +124,10 @@ class LMSEventNode(LMSFlowNode):
 
 
 class LMSFlows:
+    """
+    A document that can hold flowcharts and their nodes (i.e. LMSFlowNode). It provides the general blueprints for MSBF
+    files, however, only specific games support MSBF files. Check the LMSAdapter interface for more information.
+    """
     _MAGIC_HEADER_ = b"MsgFlwBn"
     _MAGIC_FLW2_ = b'FLW2'
     _MAGIC_FEN1_ = b'FEN1'
@@ -142,21 +146,58 @@ class LMSFlows:
 
     @property
     def flowcharts(self) -> list[LMSEntryNode]:
+        """The list of flowcharts."""
         return self._flowcharts_
 
+    @property
+    def adapter(self) -> LMSAdapter:
+        """The adapter that handles game-dependent behavior."""
+        return self._adapter_
+
     def set_big_endian(self):
+        """
+        Forces the usage of big endian byte order when reading or writing. If the current charset is 'utf-16-le', it
+        will be changed to 'utf-16-be'.
+        """
         self._adapter_.set_big_endian()
 
     def set_little_endian(self):
+        """
+        Forces the usage of little endian byte order when reading or writing. If the current charset is 'utf-16-be', it
+        will be changed to 'utf-16-le'.
+        """
         self._adapter_.set_little_endian()
 
     @property
     def is_big_endian(self) -> bool:
+        """True if big endian byte order should be used, otherwise False."""
         return self._adapter_.is_big_endian
 
     @property
     def is_little_endian(self) -> bool:
+        """True if little endian byte order should be used, otherwise False."""
         return self._adapter_.is_little_endian
+
+    def new_flowchart(self, label: str) -> LMSEntryNode:
+        """
+        Creates and returns a new flowchart using the given label and adds it to the list of flowcharts. If a flowchart
+        with the same label already exists, an LMSException will be thrown.
+
+        :param label: the new message's label.
+        :return: the new flowchart.
+        """
+        # Check if flowchart with label already exists
+        for flowchart in self._flowcharts_:
+            if flowchart.label == label:
+                raise LMSException(f"A flowchart with the label {label} already exists!")
+
+        # Create and append new flowchart
+        flowchart = LMSEntryNode()
+        flowchart.label = label
+
+        self._flowcharts_.append(flowchart)
+
+        return flowchart
 
     # ------------------------------------------------------------------------------------------------------------------
     # Unpacking
@@ -302,6 +343,11 @@ class LMSFlows:
     # Packing
     # ------------------------------------------------------------------------------------------------------------------
     def makebin(self) -> bytes:
+        """
+        Packs all flowcharts according to the MSBF format and returns the resulting bytes buffer.
+
+        :return: the packed bytes buffer.
+        """
         # Create stream and write initial content
         stream = self._adapter_.create_stream(32)
 
@@ -427,27 +473,52 @@ class LMSFlows:
 # ----------------------------------------------------------------------------------------------------------------------
 # Helper I/O functions
 # ----------------------------------------------------------------------------------------------------------------------
-def msbf_from_buffer(adapter, buffer) -> LMSFlows:
-    stream = BinaryMemoryIO(buffer)
-    flowdoc = LMSFlows(adapter)
-    flowdoc._unpack_(stream)
-    del stream
+def msbf_from_buffer(adapter_maker: type[LMSAdapter], buffer) -> LMSFlows:
+    """
+    Creates and returns a new LMS flowcharts document by unpacking the content from the specified buffer. The data is
+    expected to be in the MSBF format.
+
+    :param adapter_maker: the adapter class to be used.
+    :param buffer: the byte buffer.
+    :return: the unpacked LMSFlows.
+    """
+    flowdoc = LMSFlows(adapter_maker)
+    flowdoc._unpack_(BinaryMemoryIO(buffer))
     return flowdoc
 
 
 def msbf_pack_buffer(flowdoc: LMSFlows) -> bytes:
+    """
+    Packs the given LMS flowcharts document according to the MSBF format and returns the resulting bytes buffer.
+
+    :param flowdoc: the LMSFlows to be packed.
+    :return: the buffer containing the stored data.
+    """
     return flowdoc.makebin()
 
 
-def msbf_from_file(adapter, file_path: str) -> LMSFlows:
+def msbf_from_file(adapter_maker: type[LMSAdapter], file_path: str) -> LMSFlows:
+    """
+    Creates and returns a new LMS flowcharts document by unpacking the contents from the file at the given path. The
+    data is expected to be in the MSBF format.
+
+    :param adapter_maker: the adapter class to be used.
+    :param file_path: the file path to the MSBF file.
+    :return: the unpacked LMSFlows.
+    """
     with open(file_path, "rb") as f:
-        stream = BinaryMemoryIO(f.read())
-        flowdoc = LMSFlows(adapter)
-        flowdoc._unpack_(stream)
-        del stream
+        flowdoc = LMSFlows(adapter_maker)
+        flowdoc._unpack_(BinaryMemoryIO(f.read()))
         return flowdoc
 
 
 def msbf_write_file(flowdoc: LMSFlows, file_path: str):
+    """
+    Packs the given flowcharts document according to the MSBF format and writes the contents to the file at the given
+    path.
+
+    :param flowdoc: the LMSFlows to be written.
+    :param file_path: the file path to write the MSBF file to.
+    """
     with open(file_path, "wb") as f:
         f.write(flowdoc.makebin())

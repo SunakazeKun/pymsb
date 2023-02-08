@@ -95,7 +95,7 @@ class LMSDocument:
         :return: the new message entry.
         """
         # Check if message with label already exists
-        for message in self.messages:
+        for message in self._messages_:
             if message.label == label:
                 raise LMSException(f"A message with the label {label} already exists!")
 
@@ -109,7 +109,7 @@ class LMSDocument:
         if self._adapter_.supports_styles:
             message.style = self._adapter_.create_default_style()
 
-        self.messages.append(message)
+        self._messages_.append(message)
 
         return message
 
@@ -434,7 +434,7 @@ class LMSDocument:
 def msbt_from_buffer(adapter_maker: type[LMSAdapter], buffer: bytes | bytearray) -> LMSDocument:
     """
     Creates and returns a new LMS document by unpacking the content from the specified buffer. The data is expected to
-    be stored in the MSBT format.
+    be in the MSBT format.
 
     :param adapter_maker: the adapter class to be used.
     :param buffer: the byte buffer.
@@ -450,7 +450,7 @@ def msbt_pack_buffer(document: LMSDocument) -> bytes:
     Packs the given LMS document according to the MSBT format and returns the resulting bytes buffer.
 
     :param document: the LMSDocument to be packed.
-    :return: the buffer containg the stored data.
+    :return: the buffer containing the stored data.
     """
     return document.makebin()
 
@@ -458,7 +458,7 @@ def msbt_pack_buffer(document: LMSDocument) -> bytes:
 def msbt_from_file(adapter_maker: type[LMSAdapter], file_path: str) -> LMSDocument:
     """
     Creates and returns a new LMS document by unpacking the contents from the file at the given path. The data is
-    expected to be stored in the MSBT format.
+    expected to be in the MSBT format.
 
     :param adapter_maker: the adapter class to be used.
     :param file_path: the file path to the MSBT file.
