@@ -254,7 +254,7 @@ class LMSFlows:
             if section_magic == self._MAGIC_FEN1_:
                 self._unpack_fen1_(stream, section_offset, section_size)
 
-            if section_magic == self._MAGIC_FEN1_:
+            if section_magic == self._MAGIC_REF1_:
                 self._unpack_ref1_(stream, section_offset, section_size)
 
             current_section_offset = (section_offset + section_size + 15) & ~15
