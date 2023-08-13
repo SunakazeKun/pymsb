@@ -5,7 +5,7 @@ with open("README.md", "r") as f:
 
 setuptools.setup(
     name="pymsb",
-    version="1.0.0",
+    version="1.0.1",
     author="Aurum",
     url="https://github.com/SunakazeKun/pymsb",
     description="Python library for Nintendo's MSBT and MSBF formats",

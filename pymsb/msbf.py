@@ -262,7 +262,7 @@ class LMSFlows:
 
         # Verify contents
         if self._temp_nodes_ is None:
-            raise LMSException("No nodes section (FLW1) found")
+            raise LMSException("No nodes section (FLW2) found")
 
         if self._temp_labels_ is None:
             raise LMSException("No labels section (FEN1) found")
@@ -361,7 +361,7 @@ class LMSFlows:
         stream.skip(10)
 
         # Pack the sections
-        self._pack_flw1(stream)
+        self._pack_flw2_(stream)
         self._pack_fen1_(stream)
         num_sections = 2
 
@@ -375,7 +375,7 @@ class LMSFlows:
         del stream
         return result
 
-    def _pack_flw1(self, main_stream: BinaryMemoryIO):
+    def _pack_flw2_(self, main_stream: BinaryMemoryIO):
         self._temp_nodes_ = []
         self._temp_indices_ = []
 
